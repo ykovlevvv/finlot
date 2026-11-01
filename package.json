@@ -1,0 +1,14 @@
+{
+  "name": "finlot",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "finlot-lp"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace finlot-lp",
+    "build": "npm run build --workspace finlot-lp",
+    "start": "npm run start --workspace finlot-lp",
+    "typecheck": "npx tsc --noEmit --project finlot-lp/tsconfig.json"
+  }
+}
