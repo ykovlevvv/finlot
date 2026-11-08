@@ -2,7 +2,7 @@
 
 import { useRef, useState, type FormEvent } from 'react';
 import type { AuthService } from '@/lib/authConfig';
-import { normalizePhone, requestCallAndAwaitToken } from '@/lib/authApi';
+import { normalizePhone, requestCallAndAwaitToken, type CallAuthResult } from '@/lib/authApi';
 
 export default function AuthGate({
     service,
@@ -10,7 +10,7 @@ export default function AuthGate({
     onClose,
 }: {
     service: AuthService;
-    onAuthenticated: (token: string) => void;
+    onAuthenticated: (result: CallAuthResult) => void;
     onClose: () => void;
 }) {
     const [phone, setPhone] = useState('');
@@ -34,7 +34,7 @@ export default function AuthGate({
         abortRef.current = new AbortController();
 
         try {
-            const token = await requestCallAndAwaitToken(service, phone, {
+            const result = await requestCallAndAwaitToken(service, phone, {
                 onCallNumber: setCallPhonePretty,
                 signal: abortRef.current.signal,
                 checkNow: () => {
@@ -43,7 +43,7 @@ export default function AuthGate({
                     return true;
                 },
             });
-            onAuthenticated(token);
+            onAuthenticated(result);
         } catch (cause: any) {
             if (cause?.message === 'aborted') return;
             setError(

@@ -8,6 +8,7 @@ import {
     isRussianPhone,
     registerLeadClick,
     saveStoredAuth,
+    type CallAuthResult,
 } from '@/lib/authApi';
 import type { LandingTrackingParams } from '@/lib/landingTracking';
 import { trackedOfferUrl } from '@/lib/offerLink';
@@ -71,9 +72,13 @@ export default function LandingOfferCta({
         }
     };
 
-    const handleAuthenticated = (token: string) => {
-        saveStoredAuth(service, token);
+    const handleAuthenticated = ({ token, review }: CallAuthResult) => {
         setAuthOpen(false);
+        if (review) {
+            window.location.assign(NON_RU_FALLBACK_URL);
+            return;
+        }
+        saveStoredAuth(service, token);
         void continueWithToken();
     };
 

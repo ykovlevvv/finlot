@@ -110,15 +110,20 @@ export function getToken(apiUrl: string, checkId: string): Promise<{ token: stri
     });
 }
 
+export interface CallAuthResult {
+    token: string;
+    review: boolean;
+}
+
 export async function requestCallAndAwaitToken(
     service: AuthService,
     phone: string,
     handlers: { onCallNumber?: (phone: string) => void; signal?: AbortSignal; checkNow?: () => boolean } = {},
-): Promise<string> {
+): Promise<CallAuthResult> {
     const { onCallNumber, signal, checkNow } = handlers;
     const { checkId, callPhonePretty, confirmed } = await initCall(service.apiUrl, phone);
 
-    if (confirmed) return (await getToken(service.apiUrl, checkId)).token;
+    if (confirmed) return { token: (await getToken(service.apiUrl, checkId)).token, review: true };
     onCallNumber?.(callPhonePretty);
 
     for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt++) {
@@ -131,7 +136,7 @@ export async function requestCallAndAwaitToken(
         }
 
         const { status } = await getStatus(service.apiUrl, checkId);
-        if (status === 'confirmed') return (await getToken(service.apiUrl, checkId)).token;
+        if (status === 'confirmed') return { token: (await getToken(service.apiUrl, checkId)).token, review: false };
         if (status === 'expired') throw new Error('expired');
     }
 
