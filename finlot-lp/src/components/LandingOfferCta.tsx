@@ -2,17 +2,13 @@
 
 import { useState } from 'react';
 import AuthGate from '@/components/AuthGate';
-import { authServiceFor, NON_RU_FALLBACK_URL } from '@/lib/authConfig';
-import {
-    getStoredAuth,
-    isRussianPhone,
-    registerLeadClick,
-    saveStoredAuth,
-    type CallAuthResult,
-} from '@/lib/authApi';
+import { authServiceFor } from '@/lib/authConfig';
+import { getDeviceId, getStoredAuth, saveStoredAuth } from '@/lib/authApi';
 import type { LandingTrackingParams } from '@/lib/landingTracking';
-import { trackedOfferUrl } from '@/lib/offerLink';
-import type { Offer } from '@/lib/offers';
+
+export interface LandingOfferRef {
+    documentId?: string;
+}
 
 function webAttribution(): Record<string, string> {
     if (typeof window === 'undefined') return {};
@@ -30,11 +26,11 @@ function webAttribution(): Record<string, string> {
 }
 
 export default function LandingOfferCta({
-    offer,
+    offerRef,
     trackingParams = {},
     className = '',
 }: {
-    offer: Offer;
+    offerRef: LandingOfferRef;
     trackingParams?: LandingTrackingParams;
     className?: string;
 }) {
@@ -42,43 +38,46 @@ export default function LandingOfferCta({
     const [authOpen, setAuthOpen] = useState(false);
     const [pending, setPending] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const hasTrackedAppClick = Boolean(trackingParams.aff_sub2 && trackingParams.aff_sub3);
 
     const continueWithToken = async () => {
         const stored = getStoredAuth(service);
-        if (!stored) {
+        if (!stored || !offerRef.documentId) {
             setAuthOpen(true);
-            return;
-        }
-
-        if (!isRussianPhone(stored.phone)) {
-            window.location.assign(NON_RU_FALLBACK_URL);
             return;
         }
 
         setPending(true);
         setError(null);
         try {
-            if (hasTrackedAppClick) {
-                window.location.assign(trackedOfferUrl(offer, trackingParams));
+            const response = await fetch('/api/lp/resolve', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-finlot-device-id': getDeviceId(),
+                },
+                body: JSON.stringify({
+                    serviceKey: service.key,
+                    token: stored.token,
+                    offerDocumentId: offerRef.documentId,
+                    attribution: webAttribution(),
+                }),
+            });
+            if (response.status === 401) {
+                setAuthOpen(true);
                 return;
             }
-
-            const click = await registerLeadClick(service, stored.token, offer, webAttribution());
-            window.location.assign(trackedOfferUrl(offer, click.subids ?? {}));
+            if (!response.ok) throw new Error('resolve failed');
+            const { url } = await response.json() as { url: string };
+            window.location.assign(url);
         } catch {
             setError('Не удалось открыть предложение. Попробуйте ещё раз.');
             setPending(false);
         }
     };
 
-    const handleAuthenticated = ({ token, review }: CallAuthResult) => {
-        setAuthOpen(false);
-        if (review) {
-            window.location.assign(NON_RU_FALLBACK_URL);
-            return;
-        }
+    const handleAuthenticated = (token: string) => {
         saveStoredAuth(service, token);
+        setAuthOpen(false);
         void continueWithToken();
     };
 

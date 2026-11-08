@@ -1,5 +1,4 @@
 import type { AuthService } from '@/lib/authConfig';
-import type { Offer } from '@/lib/offers';
 
 export type CallStatus = 'pending' | 'confirmed' | 'expired';
 
@@ -83,12 +82,6 @@ export function normalizePhone(phone: string): string | null {
     return null;
 }
 
-export function isRussianPhone(phone: string | null | undefined): boolean {
-    if (!phone) return false;
-    const normalized = normalizePhone(phone);
-    return normalized?.length === 11 && normalized.startsWith('7');
-}
-
 export function initCall(apiUrl: string, phone: string): Promise<{ checkId: string; callPhonePretty: string; confirmed?: boolean }> {
     return getJson(`${apiUrl}/api/auth/call/init`, {
         method: 'POST',
@@ -110,20 +103,15 @@ export function getToken(apiUrl: string, checkId: string): Promise<{ token: stri
     });
 }
 
-export interface CallAuthResult {
-    token: string;
-    review: boolean;
-}
-
 export async function requestCallAndAwaitToken(
     service: AuthService,
     phone: string,
     handlers: { onCallNumber?: (phone: string) => void; signal?: AbortSignal; checkNow?: () => boolean } = {},
-): Promise<CallAuthResult> {
+): Promise<string> {
     const { onCallNumber, signal, checkNow } = handlers;
     const { checkId, callPhonePretty, confirmed } = await initCall(service.apiUrl, phone);
 
-    if (confirmed) return { token: (await getToken(service.apiUrl, checkId)).token, review: true };
+    if (confirmed) return (await getToken(service.apiUrl, checkId)).token;
     onCallNumber?.(callPhonePretty);
 
     for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt++) {
@@ -136,27 +124,9 @@ export async function requestCallAndAwaitToken(
         }
 
         const { status } = await getStatus(service.apiUrl, checkId);
-        if (status === 'confirmed') return { token: (await getToken(service.apiUrl, checkId)).token, review: false };
+        if (status === 'confirmed') return (await getToken(service.apiUrl, checkId)).token;
         if (status === 'expired') throw new Error('expired');
     }
 
     throw new Error('timeout');
-}
-
-export function registerLeadClick(service: AuthService, token: string, offer: Offer, attribution: Record<string, string>) {
-    return getJson<{ clickId?: string; subids: Record<string, string> }>(`${service.apiUrl}/api/leads/click`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-            deviceId: getDeviceId(),
-            network: offer.source === 'leads_su' ? 'leads_su' : 'leadgid',
-            offerDocumentId: offer.documentId,
-            offerExternalId: offer.external_id ?? (offer.legacy_id != null ? String(offer.legacy_id) : undefined),
-            offerName: offer.display_name,
-            platform: 'web',
-            build: 'global',
-            placement: 'offer_card',
-            attribution,
-        }),
-    });
 }

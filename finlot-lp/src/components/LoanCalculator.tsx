@@ -1,29 +1,36 @@
 'use client';
 
 import { useState } from 'react';
-import LandingOfferCta from '@/components/LandingOfferCta';
+import LandingOfferCta, { type LandingOfferRef } from '@/components/LandingOfferCta';
 import type { LandingTrackingParams } from '@/lib/landingTracking';
-import type { Offer } from '@/lib/offers';
 
 const rub = (value: number) => `${Math.round(value).toLocaleString('ru-RU')} ₽`;
 const percent = (value: number) => String(value).replace('.', ',');
 
 export default function LoanCalculator({
-    offer,
+    amountFrom,
+    amountTo,
+    rateFrom,
+    rateTo,
+    offerRef,
     trackingParams,
 }: {
-    offer: Offer;
+    amountFrom?: number | null;
+    amountTo?: number | null;
+    rateFrom?: number | null;
+    rateTo?: number | null;
+    offerRef: LandingOfferRef;
     trackingParams?: LandingTrackingParams;
 }) {
-    const minAmount = Math.max(1, offer.amount_from ?? 1000);
-    const maxAmount = Math.max(minAmount, offer.amount_to ?? minAmount);
+    const minAmount = Math.max(1, amountFrom ?? 1000);
+    const maxAmount = Math.max(minAmount, amountTo ?? minAmount);
     const [amount, setAmount] = useState(Math.min(maxAmount, Math.max(minAmount, 10_000)));
 
-    const rateFrom = offer.rate_from ?? offer.rate_to ?? null;
-    const rateTo = offer.rate_to ?? offer.rate_from ?? null;
-    const isDailyRate = (rateTo ?? 0) <= 5;
-    const dailyRateFrom = rateFrom == null ? null : isDailyRate ? rateFrom : rateFrom / 365;
-    const dailyRateTo = rateTo == null ? null : isDailyRate ? rateTo : rateTo / 365;
+    const resolvedRateFrom = rateFrom ?? rateTo ?? null;
+    const resolvedRateTo = rateTo ?? rateFrom ?? null;
+    const isDailyRate = (resolvedRateTo ?? 0) <= 5;
+    const dailyRateFrom = resolvedRateFrom == null ? null : isDailyRate ? resolvedRateFrom : resolvedRateFrom / 365;
+    const dailyRateTo = resolvedRateTo == null ? null : isDailyRate ? resolvedRateTo : resolvedRateTo / 365;
     const interestFrom = dailyRateFrom == null ? null : (amount * dailyRateFrom) / 100;
     const interestTo = dailyRateTo == null ? null : (amount * dailyRateTo) / 100;
     const progress = maxAmount === minAmount ? 100 : ((amount - minAmount) / (maxAmount - minAmount)) * 100;
@@ -53,14 +60,14 @@ export default function LoanCalculator({
                 <span>{rub(maxAmount)}</span>
             </div>
 
-            {rateFrom != null && rateTo != null && (
+            {resolvedRateFrom != null && resolvedRateTo != null && (
                 <dl className="facts calculator-facts">
                     <div className="fact">
                         <dt>Ставка</dt>
                         <dd>
-                            {rateFrom === rateTo
-                                ? `${percent(rateFrom)}% ${isDailyRate ? 'в день' : 'годовых'}`
-                                : `${percent(rateFrom)}–${percent(rateTo)}% ${isDailyRate ? 'в день' : 'годовых'}`}
+                            {resolvedRateFrom === resolvedRateTo
+                                ? `${percent(resolvedRateFrom)}% ${isDailyRate ? 'в день' : 'годовых'}`
+                                : `${percent(resolvedRateFrom)}–${percent(resolvedRateTo)}% ${isDailyRate ? 'в день' : 'годовых'}`}
                         </dd>
                     </div>
                     <div className="fact">
@@ -75,7 +82,7 @@ export default function LoanCalculator({
             )}
 
             <p className="note">Ориентировочный расчёт по ставке из предложения. Точные условия указываются в одобрении.</p>
-            <LandingOfferCta offer={offer} trackingParams={trackingParams} className="calculator-cta" />
+            <LandingOfferCta offerRef={offerRef} trackingParams={trackingParams} className="calculator-cta" />
         </section>
     );
 }

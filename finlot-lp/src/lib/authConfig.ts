@@ -15,5 +15,3 @@ export function authServiceFor(appTag?: string): AuthService {
         apiUrl: process.env.NEXT_PUBLIC_NETFINBANK_AUTH_API_URL ?? 'https://backend.netfinbank.ru',
     };
 }
-
-export const NON_RU_FALLBACK_URL = process.env.NEXT_PUBLIC_NON_RU_FALLBACK_URL ?? '/unavailable';

@@ -53,10 +53,25 @@ export default function MfoLanding({
                     )}
                 </dl>
 
-                {primaryOffer && <LandingOfferCta offer={primaryOffer} trackingParams={trackingParams} className="hero-cta" />}
+                {primaryOffer && (
+                    <LandingOfferCta
+                        offerRef={{ documentId: primaryOffer.documentId }}
+                        trackingParams={trackingParams}
+                        className="hero-cta"
+                    />
+                )}
             </section>
 
-            {primaryOffer && <LoanCalculator offer={primaryOffer} trackingParams={trackingParams} />}
+            {primaryOffer && (
+                <LoanCalculator
+                    amountFrom={primaryOffer.amount_from}
+                    amountTo={primaryOffer.amount_to}
+                    rateFrom={primaryOffer.rate_from}
+                    rateTo={primaryOffer.rate_to}
+                    offerRef={{ documentId: primaryOffer.documentId }}
+                    trackingParams={trackingParams}
+                />
+            )}
         </main>
     );
 }
