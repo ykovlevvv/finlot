@@ -8,6 +8,10 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 export interface Offer {
     id: number | string;
+    documentId?: string;
+    legacy_id?: number | string | null;
+    external_id?: string | null;
+    source?: string | null;
     display_name?: string;
     logo_url?: string | null;
     logo_url_square?: string | null;
@@ -43,6 +47,10 @@ async function fetchOffers(): Promise<Offer[]> {
             const source = offer?.attributes ? { id: offer.id, ...offer.attributes } : offer;
             return {
                 id: source.id,
+                documentId: source.documentId,
+                legacy_id: source.legacy_id ?? null,
+                external_id: source.external_id ?? null,
+                source: source.source ?? null,
                 display_name: source.display_name,
                 logo_url: source.logo_url ?? null,
                 logo_url_square: source.logo_url_square ?? null,
