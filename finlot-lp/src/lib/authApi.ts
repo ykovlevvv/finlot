@@ -10,8 +10,11 @@ interface StoredAuth {
 const AUTH_STORAGE_PREFIX = 'finlot_auth_v1';
 const DEVICE_ID_KEY = 'finlot_device_id_v1';
 const PENDING_CALL_KEY = 'finlot_pending_call_v1';
-const POLL_INTERVAL_MS = 2000;
-const POLL_ATTEMPTS = 150;
+const POLL_INTERVAL_MS = 3000;
+/** ~5 минут опроса, как и окно ожидания звонка в SMS.ru. */
+const POLL_ATTEMPTS = 100;
+/** Подряд идущих сбоев сети/429, после которых сдаёмся. */
+const MAX_TRANSIENT_FAILURES = 10;
 
 export interface PendingCallAuth {
     serviceKey: AuthService['key'];
@@ -23,6 +26,18 @@ export interface PendingCallAuth {
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+export class AuthHttpError extends Error {
+    constructor(public readonly status: number) {
+        super(`Auth request failed: ${status}`);
+    }
+}
+
+/** Сбой, после которого стоит повторить запрос: сеть, 429, 5xx. */
+function isTransient(error: unknown): boolean {
+    if (!(error instanceof AuthHttpError)) return true;
+    return error.status === 429 || error.status >= 500;
+}
+
 function storageKey(service: AuthService): string {
     return `${AUTH_STORAGE_PREFIX}:${service.key}`;
 }
@@ -32,7 +47,7 @@ async function getJson<T>(url: string, init?: RequestInit): Promise<T> {
         headers: { 'Content-Type': 'application/json' },
         ...init,
     });
-    if (!response.ok) throw new Error(`Auth request failed: ${response.status}`);
+    if (!response.ok) throw new AuthHttpError(response.status);
     return response.json() as Promise<T>;
 }
 
@@ -138,6 +153,7 @@ export async function awaitCallToken(
     handlers: { signal?: AbortSignal; checkNow?: () => boolean } = {},
 ): Promise<string> {
     const { signal, checkNow } = handlers;
+    let failures = 0;
 
     for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt++) {
         if (signal?.aborted) throw new Error('aborted');
@@ -148,12 +164,32 @@ export async function awaitCallToken(
             await delay(150);
         }
 
-        const { status } = await getStatus(service.apiUrl, checkId);
-        if (status === 'confirmed') return (await getToken(service.apiUrl, checkId)).token;
+        // Сеть после возврата из звонилки и 429 бывают разовыми: не обрываем опрос.
+        let status: CallStatus;
+        try {
+            ({ status } = await getStatus(service.apiUrl, checkId));
+            failures = 0;
+        } catch (error) {
+            if (!isTransient(error) || ++failures >= MAX_TRANSIENT_FAILURES) throw error;
+            continue;
+        }
+        if (status === 'confirmed') return fetchTokenWithRetry(service, checkId, signal);
         if (status === 'expired') throw new Error('expired');
     }
 
     throw new Error('timeout');
+}
+
+async function fetchTokenWithRetry(service: AuthService, checkId: string, signal?: AbortSignal): Promise<string> {
+    for (let attempt = 1; ; attempt++) {
+        if (signal?.aborted) throw new Error('aborted');
+        try {
+            return (await getToken(service.apiUrl, checkId)).token;
+        } catch (error) {
+            if (!isTransient(error) || attempt >= 5) throw error;
+            await delay(POLL_INTERVAL_MS);
+        }
+    }
 }
 
 export async function requestCallAndAwaitToken(

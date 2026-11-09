@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import AuthGate from '@/components/AuthGate';
 import { authServiceFor } from '@/lib/authConfig';
 import { getDeviceId, getPendingCall, getStoredAuth, saveStoredAuth } from '@/lib/authApi';
@@ -9,6 +9,13 @@ import type { LandingTrackingParams } from '@/lib/landingTracking';
 export interface LandingOfferRef {
     documentId?: string;
 }
+
+/**
+ * На странице несколько кнопок «Получить». Незавершённую проверку звонком
+ * подхватывает только одна, иначе два окна опрашивают один checkId и второе
+ * ловит 401 «токен уже выдан».
+ */
+let pendingCallOwner: symbol | null = null;
 
 function webAttribution(): Record<string, string> {
     if (typeof window === 'undefined') return {};
@@ -34,14 +41,24 @@ export default function LandingOfferCta({
     trackingParams?: LandingTrackingParams;
     className?: string;
 }) {
-    const service = authServiceFor(trackingParams.aff_sub1);
+    // Стабильная ссылка: service в зависимостях эффектов AuthGate, новый объект
+    // на каждом рендере перезапускал бы опрос статуса.
+    const service = useMemo(() => authServiceFor(trackingParams.aff_sub1), [trackingParams.aff_sub1]);
     const [authOpen, setAuthOpen] = useState(false);
     const [pending, setPending] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const [instanceId] = useState(() => Symbol('landing-cta'));
+
     useEffect(() => {
-        if (getPendingCall(service)) setAuthOpen(true);
-    }, [service]);
+        if (!getPendingCall(service)) return;
+        if (pendingCallOwner && pendingCallOwner !== instanceId) return;
+        pendingCallOwner = instanceId;
+        setAuthOpen(true);
+        return () => {
+            if (pendingCallOwner === instanceId) pendingCallOwner = null;
+        };
+    }, [service, instanceId]);
 
     const continueWithToken = async () => {
         const stored = getStoredAuth(service);
