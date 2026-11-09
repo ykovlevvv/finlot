@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import AuthGate from '@/components/AuthGate';
+import Icon from '@/components/Icon';
 import { authServiceFor } from '@/lib/authConfig';
 import { getDeviceId, getPendingCall, getStoredAuth, saveStoredAuth } from '@/lib/authApi';
 import type { LandingTrackingParams } from '@/lib/landingTracking';
@@ -35,10 +36,12 @@ function webAttribution(): Record<string, string> {
 export default function LandingOfferCta({
     offerRef,
     trackingParams = {},
+    appIcon,
     className = '',
 }: {
     offerRef: LandingOfferRef;
     trackingParams?: LandingTrackingParams;
+    appIcon?: string;
     className?: string;
 }) {
     // Стабильная ссылка: service в зависимостях эффектов AuthGate, новый объект
@@ -106,17 +109,18 @@ export default function LandingOfferCta({
         <>
             <button
                 type="button"
-                className={`button-primary ${className}`}
+                className={`button-primary button-block ${className}`}
                 onClick={() => void continueWithToken()}
                 disabled={pending}
             >
-                {pending ? 'Переходим…' : 'Получить'}
-                {!pending && <span aria-hidden="true">→</span>}
+                {pending ? <span className="spinner" aria-label="Переходим" /> : 'Получить деньги'}
+                {!pending && <Icon name="arrow-right" size={16} />}
             </button>
             {error && <p className="cta-error">{error}</p>}
             {authOpen && (
                 <AuthGate
                     service={service}
+                    appIcon={appIcon}
                     onAuthenticated={handleAuthenticated}
                     onClose={() => setAuthOpen(false)}
                 />

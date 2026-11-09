@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import Icon from '@/components/Icon';
 import type { AuthService } from '@/lib/authConfig';
 import {
     awaitCallToken,
@@ -14,10 +15,12 @@ import {
 
 export default function AuthGate({
     service,
+    appIcon,
     onAuthenticated,
     onClose,
 }: {
     service: AuthService;
+    appIcon?: string;
     onAuthenticated: (token: string) => void;
     onClose: () => void;
 }) {
@@ -131,14 +134,17 @@ export default function AuthGate({
     return (
         <div className="auth-overlay" role="presentation" onClick={close}>
             <section
-                className="card auth-modal"
+                className="auth-modal"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="auth-title"
                 onClick={(event) => event.stopPropagation()}
             >
-                <button type="button" className="auth-close" aria-label="Закрыть" onClick={close}>×</button>
-                <h2 id="auth-title">Вход по номеру телефона</h2>
+                <button type="button" className="auth-close" aria-label="Закрыть" onClick={close}>
+                    <Icon name="close" size={18} />
+                </button>
+                {appIcon && <img src={appIcon} alt="" width="64" height="64" className="auth-logo" />}
+                <h2 id="auth-title" className="auth-title">Вход по номеру телефона</h2>
 
                 {!callPhonePretty ? (
                     <form onSubmit={startLogin}>
@@ -154,8 +160,8 @@ export default function AuthGate({
                             disabled={loading}
                         />
                         {error && <p className="auth-error">{error}</p>}
-                        <button type="submit" className="button-primary auth-submit" disabled={loading}>
-                            {loading ? 'Проверяем…' : 'Продолжить'}
+                        <button type="submit" className="button-primary button-block" disabled={loading}>
+                            {loading ? <span className="spinner" aria-label="Проверяем" /> : 'Продолжить'}
                         </button>
                         <p className="auth-note">
                             Нажимая «Продолжить», вы соглашаетесь на обработку номера телефона для входа.
@@ -166,16 +172,20 @@ export default function AuthGate({
                         <p className="auth-text">Позвоните на номер:</p>
                         <a href={`tel:${callPhonePretty}`} className="auth-phone">{callPhonePretty}</a>
                         <div className="auth-actions">
-                            <a href={`tel:${callPhonePretty}`} className="button-secondary auth-action">Позвонить</a>
-                            <button type="button" className="button-secondary auth-action" onClick={copyNumber}>
+                            <a href={`tel:${callPhonePretty}`} className="button-soft">
+                                <Icon name="phone" size={16} />
+                                Позвонить
+                            </a>
+                            <button type="button" className="button-soft" onClick={copyNumber}>
+                                <Icon name="copy" size={16} />
                                 {copied ? 'Скопировано' : 'Копировать'}
                             </button>
                         </div>
-                        <p className="auth-note">Мы определим ваш номер автоматически.</p>
+                        <p className="auth-note auth-note-top">Мы определим ваш номер автоматически.</p>
                         {error && <p className="auth-error">{error}</p>}
                         <button
                             type="button"
-                            className="button-primary auth-submit"
+                            className="button-primary button-block"
                             onClick={() => { checkNowRef.current = true; }}
                         >
                             {loading ? 'Проверяем…' : 'Позвонил, проверить'}

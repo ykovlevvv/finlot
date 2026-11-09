@@ -1,8 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import LandingOfferCta, { type LandingOfferRef } from '@/components/LandingOfferCta';
-import type { LandingTrackingParams } from '@/lib/landingTracking';
 
 const rub = (value: number) => `${Math.round(value).toLocaleString('ru-RU')} ₽`;
 const percent = (value: number) => String(value).replace('.', ',');
@@ -12,15 +10,11 @@ export default function LoanCalculator({
     amountTo,
     rateFrom,
     rateTo,
-    offerRef,
-    trackingParams,
 }: {
     amountFrom?: number | null;
     amountTo?: number | null;
     rateFrom?: number | null;
     rateTo?: number | null;
-    offerRef: LandingOfferRef;
-    trackingParams?: LandingTrackingParams;
 }) {
     const minAmount = Math.max(1, amountFrom ?? 1000);
     const maxAmount = Math.max(minAmount, amountTo ?? minAmount);
@@ -36,53 +30,54 @@ export default function LoanCalculator({
     const progress = maxAmount === minAmount ? 100 : ((amount - minAmount) / (maxAmount - minAmount)) * 100;
 
     return (
-        <section className="card calculator" aria-labelledby="loan-calculator">
-            <h2 id="loan-calculator">Калькулятор займа</h2>
+        <section className="section" aria-labelledby="loan-calculator">
+            <h2 id="loan-calculator" className="section-label">Калькулятор займа</h2>
+            <div className="card">
 
-            <div className="amount-row">
-                <label htmlFor="loan-amount">Сумма займа</label>
-                <output htmlFor="loan-amount">{rub(amount)}</output>
+                <div className="amount-row">
+                    <label htmlFor="loan-amount">Сумма займа</label>
+                    <output htmlFor="loan-amount">{rub(amount)}</output>
+                </div>
+                <input
+                    id="loan-amount"
+                    type="range"
+                    min={minAmount}
+                    max={maxAmount}
+                    step={minAmount >= 1000 ? 1000 : 100}
+                    value={amount}
+                    disabled={minAmount === maxAmount}
+                    onChange={(event) => setAmount(Number(event.target.value))}
+                    className="range"
+                    style={{ background: `linear-gradient(to right, var(--accent) ${progress}%, var(--fill) ${progress}%)` }}
+                />
+                <div className="range-labels">
+                    <span>{rub(minAmount)}</span>
+                    <span>{rub(maxAmount)}</span>
+                </div>
+
+                {resolvedRateFrom != null && resolvedRateTo != null && (
+                    <dl className="metrics">
+                        <div className="metric">
+                            <dt>Ставка</dt>
+                            <dd>
+                                {resolvedRateFrom === resolvedRateTo
+                                    ? `${percent(resolvedRateFrom)}% ${isDailyRate ? 'в день' : 'годовых'}`
+                                    : `${percent(resolvedRateFrom)}–${percent(resolvedRateTo)}% ${isDailyRate ? 'в день' : 'годовых'}`}
+                            </dd>
+                        </div>
+                        <div className="metric">
+                            <dt>Проценты в день</dt>
+                            <dd>
+                                {interestFrom === interestTo
+                                    ? rub(interestFrom ?? 0)
+                                    : `${rub(interestFrom ?? 0)}–${rub(interestTo ?? 0)}`}
+                            </dd>
+                        </div>
+                    </dl>
+                )}
+
+                <p className="note">Ориентировочный расчёт по ставке из предложения. Точные условия указываются в одобрении.</p>
             </div>
-            <input
-                id="loan-amount"
-                type="range"
-                min={minAmount}
-                max={maxAmount}
-                step={minAmount >= 1000 ? 1000 : 100}
-                value={amount}
-                disabled={minAmount === maxAmount}
-                onChange={(event) => setAmount(Number(event.target.value))}
-                className="range"
-                style={{ background: `linear-gradient(to right, var(--brand) ${progress}%, var(--surface-2) ${progress}%)` }}
-            />
-            <div className="range-labels">
-                <span>{rub(minAmount)}</span>
-                <span>{rub(maxAmount)}</span>
-            </div>
-
-            {resolvedRateFrom != null && resolvedRateTo != null && (
-                <dl className="facts calculator-facts">
-                    <div className="fact">
-                        <dt>Ставка</dt>
-                        <dd>
-                            {resolvedRateFrom === resolvedRateTo
-                                ? `${percent(resolvedRateFrom)}% ${isDailyRate ? 'в день' : 'годовых'}`
-                                : `${percent(resolvedRateFrom)}–${percent(resolvedRateTo)}% ${isDailyRate ? 'в день' : 'годовых'}`}
-                        </dd>
-                    </div>
-                    <div className="fact">
-                        <dt>Проценты в день</dt>
-                        <dd>
-                            {interestFrom === interestTo
-                                ? rub(interestFrom ?? 0)
-                                : `${rub(interestFrom ?? 0)}–${rub(interestTo ?? 0)}`}
-                        </dd>
-                    </div>
-                </dl>
-            )}
-
-            <p className="note">Ориентировочный расчёт по ставке из предложения. Точные условия указываются в одобрении.</p>
-            <LandingOfferCta offerRef={offerRef} trackingParams={trackingParams} className="calculator-cta" />
         </section>
     );
 }

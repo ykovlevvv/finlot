@@ -1,10 +1,13 @@
+import AppShell from '@/components/AppShell';
+import { DEFAULT_APP_THEME } from '@/lib/appTheme';
+
 export default function NotFound() {
     return (
-        <main className="page">
-            <section className="card hero not-found">
-                <p className="eyebrow">404</p>
+        <AppShell theme={DEFAULT_APP_THEME}>
+            <section className="hero empty-state">
+                <p className="hero-type">404</p>
                 <h1>Страница не найдена</h1>
             </section>
-        </main>
+        </AppShell>
     );
 }

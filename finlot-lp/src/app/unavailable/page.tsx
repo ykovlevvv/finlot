@@ -1,3 +1,5 @@
+import AppShell from '@/components/AppShell';
+import { DEFAULT_APP_THEME } from '@/lib/appTheme';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -7,11 +9,11 @@ export const metadata: Metadata = {
 
 export default function Page() {
     return (
-        <main className="page">
-            <section className="card hero not-found">
-                <p className="eyebrow">Недоступно</p>
+        <AppShell theme={DEFAULT_APP_THEME}>
+            <section className="hero empty-state">
+                <p className="hero-type">Недоступно</p>
                 <h1>Предложение недоступно для этого номера</h1>
             </section>
-        </main>
+        </AppShell>
     );
 }
