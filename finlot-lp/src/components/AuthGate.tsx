@@ -1,8 +1,16 @@
 'use client';
 
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { AuthService } from '@/lib/authConfig';
-import { normalizePhone, requestCallAndAwaitToken } from '@/lib/authApi';
+import {
+    awaitCallToken,
+    clearPendingCall,
+    getPendingCall,
+    getToken,
+    initCall,
+    normalizePhone,
+    savePendingCall,
+} from '@/lib/authApi';
 
 export default function AuthGate({
     service,
@@ -21,6 +29,48 @@ export default function AuthGate({
     const abortRef = useRef<AbortController | null>(null);
     const checkNowRef = useRef(false);
 
+    const showError = (cause: any) => {
+        setError(
+            cause?.message === 'expired'
+                ? 'Время проверки истекло. Попробуйте снова.'
+                : cause?.message === 'timeout'
+                  ? 'Звонок не подтверждён. Попробуйте снова.'
+                  : 'Ошибка авторизации. Попробуйте позже.',
+        );
+    };
+
+    const awaitToken = async (checkId: string) => {
+        setLoading(true);
+        abortRef.current = new AbortController();
+        try {
+            const token = await awaitCallToken(service, checkId, {
+                signal: abortRef.current.signal,
+                checkNow: () => {
+                    if (!checkNowRef.current) return false;
+                    checkNowRef.current = false;
+                    return true;
+                },
+            });
+            clearPendingCall();
+            onAuthenticated(token);
+        } catch (cause: any) {
+            if (cause?.message === 'aborted') return;
+            if (cause?.message === 'expired' || cause?.message === 'timeout') clearPendingCall();
+            showError(cause);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        const pending = getPendingCall(service);
+        if (!pending) return;
+        setPhone(pending.phone);
+        setCallPhonePretty(pending.callPhonePretty);
+        void awaitToken(pending.checkId);
+        return () => abortRef.current?.abort();
+    }, [service]);
+
     const startLogin = async (event?: FormEvent) => {
         event?.preventDefault();
         if (!normalizePhone(phone)) {
@@ -32,29 +82,26 @@ export default function AuthGate({
         setLoading(true);
         setCallPhonePretty(null);
         checkNowRef.current = false;
-        abortRef.current = new AbortController();
 
         try {
-            const token = await requestCallAndAwaitToken(service, phone, {
-                onCallNumber: setCallPhonePretty,
-                signal: abortRef.current.signal,
-                checkNow: () => {
-                    if (!checkNowRef.current) return false;
-                    checkNowRef.current = false;
-                    return true;
-                },
+            const { checkId, callPhonePretty: nextCallPhone, confirmed } = await initCall(service.apiUrl, phone);
+            if (confirmed) {
+                clearPendingCall();
+                onAuthenticated((await getToken(service.apiUrl, checkId)).token);
+                return;
+            }
+
+            setCallPhonePretty(nextCallPhone);
+            savePendingCall({
+                serviceKey: service.key,
+                phone,
+                checkId,
+                callPhonePretty: nextCallPhone,
+                startedAt: Date.now(),
             });
-            onAuthenticated(token);
-        } catch (cause: any) {
-            if (cause?.message === 'aborted') return;
-            setError(
-                cause?.message === 'expired'
-                    ? 'Время проверки истекло. Попробуйте снова.'
-                    : cause?.message === 'timeout'
-                      ? 'Звонок не подтверждён. Попробуйте снова.'
-                      : 'Ошибка авторизации. Попробуйте позже.',
-            );
-        } finally {
+            void awaitToken(checkId);
+        } catch (cause) {
+            showError(cause);
             setLoading(false);
         }
     };
@@ -76,6 +123,7 @@ export default function AuthGate({
     };
 
     const close = () => {
+        clearPendingCall();
         abortRef.current?.abort();
         onClose();
     };

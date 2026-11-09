@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import AuthGate from '@/components/AuthGate';
 import { authServiceFor } from '@/lib/authConfig';
-import { getDeviceId, getStoredAuth, saveStoredAuth } from '@/lib/authApi';
+import { getDeviceId, getPendingCall, getStoredAuth, saveStoredAuth } from '@/lib/authApi';
 import type { LandingTrackingParams } from '@/lib/landingTracking';
 
 export interface LandingOfferRef {
@@ -38,6 +38,10 @@ export default function LandingOfferCta({
     const [authOpen, setAuthOpen] = useState(false);
     const [pending, setPending] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (getPendingCall(service)) setAuthOpen(true);
+    }, [service]);
 
     const continueWithToken = async () => {
         const stored = getStoredAuth(service);

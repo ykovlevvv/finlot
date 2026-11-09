@@ -9,8 +9,17 @@ interface StoredAuth {
 
 const AUTH_STORAGE_PREFIX = 'finlot_auth_v1';
 const DEVICE_ID_KEY = 'finlot_device_id_v1';
+const PENDING_CALL_KEY = 'finlot_pending_call_v1';
 const POLL_INTERVAL_MS = 2000;
-const POLL_ATTEMPTS = 30;
+const POLL_ATTEMPTS = 150;
+
+export interface PendingCallAuth {
+    serviceKey: AuthService['key'];
+    phone: string;
+    checkId: string;
+    callPhonePretty: string;
+    startedAt: number;
+}
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -62,6 +71,26 @@ export function saveStoredAuth(service: AuthService, token: string): void {
     localStorage.setItem(storageKey(service), JSON.stringify({ token, apiUrl: service.apiUrl }));
 }
 
+export function getPendingCall(service: AuthService): PendingCallAuth | null {
+    try {
+        const raw = localStorage.getItem(PENDING_CALL_KEY);
+        if (!raw) return null;
+        const pending = JSON.parse(raw) as PendingCallAuth;
+        if (pending.serviceKey !== service.key || !pending.checkId || !pending.phone) return null;
+        return pending;
+    } catch {
+        return null;
+    }
+}
+
+export function savePendingCall(pending: PendingCallAuth): void {
+    localStorage.setItem(PENDING_CALL_KEY, JSON.stringify(pending));
+}
+
+export function clearPendingCall(): void {
+    localStorage.removeItem(PENDING_CALL_KEY);
+}
+
 export function getDeviceId(): string {
     try {
         const stored = localStorage.getItem(DEVICE_ID_KEY);
@@ -103,16 +132,12 @@ export function getToken(apiUrl: string, checkId: string): Promise<{ token: stri
     });
 }
 
-export async function requestCallAndAwaitToken(
+export async function awaitCallToken(
     service: AuthService,
-    phone: string,
-    handlers: { onCallNumber?: (phone: string) => void; signal?: AbortSignal; checkNow?: () => boolean } = {},
+    checkId: string,
+    handlers: { signal?: AbortSignal; checkNow?: () => boolean } = {},
 ): Promise<string> {
-    const { onCallNumber, signal, checkNow } = handlers;
-    const { checkId, callPhonePretty, confirmed } = await initCall(service.apiUrl, phone);
-
-    if (confirmed) return (await getToken(service.apiUrl, checkId)).token;
-    onCallNumber?.(callPhonePretty);
+    const { signal, checkNow } = handlers;
 
     for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt++) {
         if (signal?.aborted) throw new Error('aborted');
@@ -129,4 +154,17 @@ export async function requestCallAndAwaitToken(
     }
 
     throw new Error('timeout');
+}
+
+export async function requestCallAndAwaitToken(
+    service: AuthService,
+    phone: string,
+    handlers: { onCallNumber?: (phone: string) => void; signal?: AbortSignal; checkNow?: () => boolean } = {},
+): Promise<string> {
+    const { onCallNumber, signal, checkNow } = handlers;
+    const { checkId, callPhonePretty, confirmed } = await initCall(service.apiUrl, phone);
+
+    if (confirmed) return (await getToken(service.apiUrl, checkId)).token;
+    onCallNumber?.(callPhonePretty);
+    return awaitCallToken(service, checkId, { signal, checkNow });
 }
