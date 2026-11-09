@@ -17,6 +17,7 @@ export default function AuthGate({
     const [callPhonePretty, setCallPhonePretty] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
     const abortRef = useRef<AbortController | null>(null);
     const checkNowRef = useRef(false);
 
@@ -58,6 +59,22 @@ export default function AuthGate({
         }
     };
 
+    const copyNumber = async () => {
+        if (!callPhonePretty) return;
+        try {
+            await navigator.clipboard.writeText(callPhonePretty);
+        } catch {
+            const input = document.createElement('textarea');
+            input.value = callPhonePretty;
+            document.body.appendChild(input);
+            input.select();
+            document.execCommand('copy');
+            input.remove();
+        }
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1500);
+    };
+
     const close = () => {
         abortRef.current?.abort();
         onClose();
@@ -77,7 +94,7 @@ export default function AuthGate({
 
                 {!callPhonePretty ? (
                     <form onSubmit={startLogin}>
-                        <p className="auth-text">Для продолжения подтвердите номер звонком.</p>
+                        <p className="auth-text">Авторизация нужна только один раз. Для продолжения подтвердите номер звонком.</p>
                         <input
                             className="auth-input"
                             type="tel"
@@ -100,6 +117,12 @@ export default function AuthGate({
                     <div>
                         <p className="auth-text">Позвоните на номер:</p>
                         <a href={`tel:${callPhonePretty}`} className="auth-phone">{callPhonePretty}</a>
+                        <div className="auth-actions">
+                            <a href={`tel:${callPhonePretty}`} className="button-secondary auth-action">Позвонить</a>
+                            <button type="button" className="button-secondary auth-action" onClick={copyNumber}>
+                                {copied ? 'Скопировано' : 'Копировать'}
+                            </button>
+                        </div>
                         <p className="auth-note">Мы определим ваш номер автоматически.</p>
                         {error && <p className="auth-error">{error}</p>}
                         <button
