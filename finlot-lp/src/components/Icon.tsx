@@ -7,6 +7,7 @@ const PATHS = {
             <path d="M9 4h6v3H9zM9 12h6M9 16h4" />
         </>
     ),
+    check: <path d="m5 12 5 5 9-10" />,
     flash: <path d="M13 3 5 13h6l-1 8 8-10h-6l1-8z" />,
     'check-circle': (
         <>
