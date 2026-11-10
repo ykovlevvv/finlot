@@ -143,7 +143,8 @@ export function getStatus(apiUrl: string, checkId: string): Promise<{ status: Ca
 export function getToken(apiUrl: string, checkId: string): Promise<{ token: string }> {
     return getJson(`${apiUrl}/api/auth/call/check`, {
         method: 'POST',
-        body: JSON.stringify({ checkId }),
+        // source учитывается бэкендом только при создании пользователя.
+        body: JSON.stringify({ checkId, source: 'lp' }),
     });
 }
 
