@@ -63,6 +63,25 @@ export default function LandingOfferCta({
         };
     }, [service, instanceId]);
 
+    // После перехода на МФО страница остаётся в bfcache с pending=true, и по
+    // «Назад» кнопка возвращается заблокированной спиннером. Сбрасываем при
+    // восстановлении из кэша и при возврате вкладки на передний план.
+    useEffect(() => {
+        const reset = () => setPending(false);
+        const onPageShow = (event: PageTransitionEvent) => {
+            if (event.persisted) reset();
+        };
+        const onVisible = () => {
+            if (document.visibilityState === 'visible') reset();
+        };
+        window.addEventListener('pageshow', onPageShow);
+        document.addEventListener('visibilitychange', onVisible);
+        return () => {
+            window.removeEventListener('pageshow', onPageShow);
+            document.removeEventListener('visibilitychange', onVisible);
+        };
+    }, []);
+
     const continueWithToken = async () => {
         const stored = getStoredAuth(service);
         if (!stored || !offerRef.documentId) {
