@@ -1,4 +1,5 @@
 import { unstable_cache } from 'next/cache';
+import { parseBorrowerAge, type BorrowerAge } from '@/lib/borrowerAge';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
     ? process.env.NEXT_PUBLIC_API_URL.endsWith('/api')
@@ -25,6 +26,8 @@ export interface Offer {
     rate_to?: number | null;
     term_from?: number | null;
     term_to?: number | null;
+    /** Из описания оффера; само описание в кэш не кладём — оно большое. */
+    borrower_age?: BorrowerAge | null;
     metrics?: { epc?: number | null };
     custom_position?: number | null;
     affiliate_status?: string | null;
@@ -64,6 +67,7 @@ async function fetchOffers(): Promise<Offer[]> {
                 rate_to: source.rate_to ?? null,
                 term_from: source.term_from ?? null,
                 term_to: source.term_to ?? null,
+                borrower_age: parseBorrowerAge(source.description),
                 metrics: source.metrics || {},
                 custom_position: source.custom_position ?? null,
                 affiliate_status: source.affiliate_status ?? null,

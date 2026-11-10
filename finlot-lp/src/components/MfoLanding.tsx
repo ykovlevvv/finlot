@@ -3,6 +3,7 @@ import Icon, { type IconName } from '@/components/Icon';
 import LandingOfferCta from '@/components/LandingOfferCta';
 import LoanCalculator from '@/components/LoanCalculator';
 import { appThemeFor } from '@/lib/appTheme';
+import { borrowerAgeLabel } from '@/lib/borrowerAge';
 import type { LandingTrackingParams } from '@/lib/landingTracking';
 import { shortTermMfoOffers, type LandingBrand } from '@/lib/shortTermMfo';
 
@@ -13,12 +14,6 @@ const amountLabel = (value: number) =>
           ? `до ${Math.round(value / 1000)} тыс ₽`
           : `до ${value.toLocaleString('ru-RU')} ₽`;
 
-const termLabel = (days: number) => {
-    const mod10 = days % 10;
-    const mod100 = days % 100;
-    const word = mod10 === 1 && mod100 !== 11 ? 'дня' : 'дней';
-    return `до ${days} ${word}`;
-};
 
 // Как в карточке оффера приложения: типовой процесс, без обещаний по конкретной МФО.
 const STEPS: { label: string; sub: string; icon: IconName }[] = [
@@ -40,13 +35,14 @@ export default function MfoLanding({
     const primaryOffer = offers[0];
     const maxAmount = Math.max(...offers.map((offer) => offer.amount_to ?? 0));
     const minRate = Math.min(...offers.map((offer) => offer.rate_from ?? Number.POSITIVE_INFINITY));
-    const maxTerm = Math.max(...offers.map((offer) => offer.term_to ?? 0));
+    // Возраст основного оффера, иначе первый распознанный у бренда.
+    const age = [primaryOffer, ...offers].find((offer) => offer?.borrower_age)?.borrower_age ?? null;
     const logoUrl = primaryOffer?.logo_url_square || primaryOffer?.logo_url || null;
 
     const stats = [
         maxAmount > 0 && { label: 'Сумма', value: amountLabel(maxAmount) },
         Number.isFinite(minRate) && { label: 'Ставка', value: `от ${String(minRate).replace('.', ',')}%` },
-        maxTerm > 0 && { label: 'Срок', value: termLabel(maxTerm) },
+        age && { label: 'Возраст', value: borrowerAgeLabel(age) },
     ].filter(Boolean) as { label: string; value: string }[];
 
     return (
